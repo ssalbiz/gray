@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/png"
 	"math"
+	"math/rand"
 	"os"
 	"time"
 
@@ -14,7 +15,9 @@ import (
 )
 
 const (
-  MSAA = 4
+  MSAA = 1
+	SUBPIXEL_OFFSET = MSAA/2
+  JITTER = true
 )
 
 func degree_to_rad(in float64) float64 {
@@ -90,15 +93,22 @@ func Render(scene *scene.Scene) {
 	fmt.Println(scene)
 	pdone := 0
 
+
 	for y := 0; y < scene.Height; y++ {
 		for x := 0; x < scene.Width; x++ {
 		  acc := glm.Vec3{}
 		  for yaa := 0; yaa < MSAA; yaa++ {
 		    for xaa := 0; xaa < MSAA; xaa++ {
+          x_offset := float64(SUBPIXEL_OFFSET)
+          y_offset := float64(SUBPIXEL_OFFSET)
+		      if (JITTER) {
+		        x_offset = (rand.Float64() - 0.5) * (1/float64(MSAA))
+		        y_offset = (rand.Float64() - 0.5) * (1/float64(MSAA))
+          }
           subpixel := top_pixel.Add(hor.Scale(aspect_ratio * float64(x))).Add(
             scene.Up.Scale(float64(y))).Add(
-            hor.Scale(aspect_ratio * float64(xaa - MSAA/2)/float64(MSAA))).Add(
-            scene.Up.Scale(float64(yaa - MSAA/2)/float64(MSAA)))
+            hor.Scale(aspect_ratio * (float64(xaa) - x_offset)/float64(MSAA))).Add(
+            scene.Up.Scale((float64(yaa) - y_offset)/float64(MSAA)))
             ray := subpixel.Subtract(&scene.Eye)
             acc.Iadd(trace(scene.Primitives, scene.Ambient, ray, &scene.Eye, scene.Lights))
         }

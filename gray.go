@@ -7,8 +7,14 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"time"
+
 	"gray/glm"
 	"gray/scene"
+)
+
+const (
+  MSAA = 4
 )
 
 func degree_to_rad(in float64) float64 {
@@ -29,7 +35,7 @@ func intersectNodes(nodes []scene.Primitive, ray, origin *glm.Vec3) (any bool, m
 }
 
 
-func trace(root []scene.Primitive, ambient glm.Vec3, ray, origin *glm.Vec3, lights []scene.Light) color.RGBA {
+func trace(root []scene.Primitive, ambient glm.Vec3, ray, origin *glm.Vec3, lights []scene.Light) *glm.Vec3 {
 	if hit, node, raylen, normal := intersectNodes(root, ray, origin); hit {
 	  // ambient silhouette
 	  mat := root[node].GetMaterial()
@@ -60,14 +66,9 @@ func trace(root []scene.Primitive, ambient glm.Vec3, ray, origin *glm.Vec3, ligh
       }
     }
     colour.Iadd(&diffuse).Iadd(&specular)
-    //clamp colour values.
-    colour.Elem[0] = math.Max(0.0, math.Min(colour.Elem[0], 1.0))
-    colour.Elem[1] = math.Max(0.0, math.Min(colour.Elem[1], 1.0))
-    colour.Elem[2] = math.Max(0.0, math.Min(colour.Elem[2], 1.0))
-
-    return color.RGBA{uint8(255*colour.Elem[0]), uint8(255*colour.Elem[1]), uint8(255*colour.Elem[2]), 255}
+    return colour
   }
-	return color.RGBA{10, 10, 10, 255}
+	return glm.NewVec3(0.1, 0.1, 0.1)
 }
 
 func Render(scene *scene.Scene) {
@@ -87,16 +88,35 @@ func Render(scene *scene.Scene) {
 	// dump scene info
 	fmt.Println("Scene info:")
 	fmt.Println(scene)
+	pdone := 0
 
 	for y := 0; y < scene.Height; y++ {
 		for x := 0; x < scene.Width; x++ {
-			pixel := top_pixel.Add(hor.Scale(aspect_ratio * float64(x))).Add(
-				scene.Up.Scale(float64(y)))
-			ray := pixel.Subtract(&scene.Eye)
-			c := trace(scene.Primitives, scene.Ambient, ray, &scene.Eye, scene.Lights)
+		  acc := glm.Vec3{}
+		  for yaa := 0; yaa < MSAA; yaa++ {
+		    for xaa := 0; xaa < MSAA; xaa++ {
+          subpixel := top_pixel.Add(hor.Scale(aspect_ratio * float64(x))).Add(
+            scene.Up.Scale(float64(y))).Add(
+            hor.Scale(aspect_ratio * float64(xaa - MSAA/2)/float64(MSAA))).Add(
+            scene.Up.Scale(float64(yaa - MSAA/2)/float64(MSAA)))
+            ray := subpixel.Subtract(&scene.Eye)
+            acc.Iadd(trace(scene.Primitives, scene.Ambient, ray, &scene.Eye, scene.Lights))
+        }
+      }
+      acc.Iscale(1/float64(MSAA*MSAA))
+      //clamp colour values.
+      acc.Elem[0] = math.Max(0.0, math.Min(acc.Elem[0], 1.0))
+      acc.Elem[1] = math.Max(0.0, math.Min(acc.Elem[1], 1.0))
+      acc.Elem[2] = math.Max(0.0, math.Min(acc.Elem[2], 1.0))
+      // pack into a color.RGBA struct
+      pixel := color.RGBA{uint8(255*acc.Elem[0]), uint8(255*acc.Elem[1]), uint8(255*acc.Elem[2]), 255}
 			//fmt.Println(c)
-			img_rect.Set(x, scene.Height - y - 1, c)
+			img_rect.Set(x, scene.Height - y - 1, pixel)
 		}
+		if (100*y)/scene.Height - pdone >= 5 {
+		  pdone = (100*y)/scene.Height
+      fmt.Println("Done ", pdone, "%...")
+    }
 	}
 
 	w, err := os.Create("out.png")
@@ -114,5 +134,9 @@ func main() {
     fmt.Println()
     return
   }
+  t := time.Now()
+  fmt.Println("Starting tracing at ", t, "...")
   Render(scene)
+  fmt.Println("Done tracing at ", time.Now())
+  fmt.Println("Tracing took:", time.Now().Sub(t))
 }

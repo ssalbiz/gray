@@ -23,6 +23,7 @@ type Material struct {
   Diffuse glm.Vec3
   Specular glm.Vec3
   Shininess float64
+  Mirror float64
 }
 
 type Primitive interface {
@@ -275,16 +276,16 @@ func CreateScene() (scene *Scene, err error) {
     Light{*glm.NewVec3( 400.0, 100.0, 150.0), *glm.NewVec3(0.7, 0.0, 0.7), *glm.NewVec3(1.0, 0.0, 0.0)},
   }
   mat1 := Material{
-    *glm.NewVec3(0.7, 1.0, 0.7), *glm.NewVec3(0.7, 1.0, 0.7), *glm.NewVec3(0.5, 0.7, 0.5), 25.0,
+    *glm.NewVec3(0.7, 1.0, 0.7), *glm.NewVec3(0.7, 1.0, 0.7), *glm.NewVec3(0.5, 0.7, 0.5), 25.0, 0.3,
   }
   mat2 := Material{
-    *glm.NewVec3(0.5, 0.5, 0.5), *glm.NewVec3(0.5, 0.5, 0.5), *glm.NewVec3(0.5, 0.7, 0.5), 25.0,
+    *glm.NewVec3(0.5, 0.5, 0.5), *glm.NewVec3(0.5, 0.5, 0.5), *glm.NewVec3(0.5, 0.7, 0.5), 25.0, 0.3,
   }
   mat3 := Material{
-    *glm.NewVec3(1.0, 0.6, 0.1), *glm.NewVec3(1.0, 0.6, 0.1), *glm.NewVec3(0.5, 0.7, 0.5), 25.0,
+    *glm.NewVec3(1.0, 0.6, 0.1), *glm.NewVec3(1.0, 0.6, 0.1), *glm.NewVec3(0.5, 0.7, 0.5), 25.0, 0.3,
   }
   mat4 := Material{
-    *glm.NewVec3(0.7, 0.6, 1.0), *glm.NewVec3(0.7, 0.6, 1.0), *glm.NewVec3(0.5, 0.4, 0.8), 25.0,
+    *glm.NewVec3(0.7, 0.6, 1.0), *glm.NewVec3(0.7, 0.6, 1.0), *glm.NewVec3(0.5, 0.4, 0.8), 25.0, 0.3,
   }
 
   scene.Primitives = make([]Primitive, 7)

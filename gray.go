@@ -17,13 +17,20 @@ import (
 const (
   MSAA = 1
 	SUBPIXEL_OFFSET = MSAA/2
-  JITTER = true
+  JITTER = false
+  REFLECTIONS = true
+  MAX_DEPTH = 2
 )
 
 func degree_to_rad(in float64) float64 {
 	return math.Pi * in / 180.0
 }
 
+func background() *glm.Vec3 {
+  return glm.NewVec3(0.1, 0.1, 0.1)
+}
+
+//TODO: write fail-early intersectShadowNodes
 func intersectNodes(nodes []scene.Primitive, ray, origin *glm.Vec3) (any bool, min_node int, min_raylen float64, min_normal glm.Vec3) {
   min_raylen = 10000.0
   for i, node := range nodes {
@@ -38,7 +45,7 @@ func intersectNodes(nodes []scene.Primitive, ray, origin *glm.Vec3) (any bool, m
 }
 
 
-func trace(root []scene.Primitive, ambient glm.Vec3, ray, origin *glm.Vec3, lights []scene.Light) *glm.Vec3 {
+func trace(root []scene.Primitive, ambient glm.Vec3, ray, origin *glm.Vec3, lights []scene.Light, depth int) (*glm.Vec3, bool) {
 	if hit, node, raylen, normal := intersectNodes(root, ray, origin); hit {
 	  // ambient silhouette
 	  mat := root[node].GetMaterial()
@@ -49,7 +56,8 @@ func trace(root []scene.Primitive, ambient glm.Vec3, ray, origin *glm.Vec3, ligh
 	  specular := glm.Vec3{}
     ray.Normalize()
     normal.Normalize()
-	  // cast shadow rays.
+
+	  // cast shadow ray.
 	  for _, light := range lights {
       shadow_ray := light.Pos.Subtract(intersection)
       if hit, _, _, _ = intersectNodes(root, shadow_ray, intersection); !hit {
@@ -60,8 +68,8 @@ func trace(root []scene.Primitive, ambient glm.Vec3, ray, origin *glm.Vec3, ligh
           diffuse_tmp := mat.Diffuse.Scale(diffuse_coef)
           diffuse.Iadd(glm.NewVec3(diffuse_tmp.Elem[0]*light.Colour.Elem[0], diffuse_tmp.Elem[1]*light.Colour.Elem[1], diffuse_tmp.Elem[2]*light.Colour.Elem[2]))
         }
-        reflected_ray := normal.Scale(2*diffuse_coef).Subtract(shadow_ray)
-        specular_coef := math.Abs(math.Pow(reflected_ray.Dot(ray), mat.Shininess))
+        reflected_shadow_ray := shadow_ray.Subtract(normal.Scale(2*diffuse_coef))
+        specular_coef := math.Abs(math.Pow(reflected_shadow_ray.Dot(ray), mat.Shininess))
         if specular_coef > 0.00001 {
           specular_tmp := mat.Specular.Scale(specular_coef)
           specular.Iadd(glm.NewVec3(specular_tmp.Elem[0]*light.Colour.Elem[0], specular_tmp.Elem[1]*light.Colour.Elem[1], specular_tmp.Elem[2]*light.Colour.Elem[2]))
@@ -69,9 +77,18 @@ func trace(root []scene.Primitive, ambient glm.Vec3, ray, origin *glm.Vec3, ligh
       }
     }
     colour.Iadd(&diffuse).Iadd(&specular)
-    return colour
+    // cast reflectance ray.
+    if REFLECTIONS {
+      reflected := ray.Subtract(normal.Scale(2*normal.Dot(ray)))
+      if (depth < MAX_DEPTH) {
+        if reflected_color, hit := trace(root, ambient, reflected, intersection, lights, depth+1); hit {
+          colour.Iscale(1 - mat.Mirror).Iadd(reflected_color.Scale(mat.Mirror))
+        }
+      }
+    }
+    return colour, true
   }
-	return glm.NewVec3(0.1, 0.1, 0.1)
+	return &glm.Vec3{}, false
 }
 
 func Render(scene *scene.Scene) {
@@ -110,7 +127,11 @@ func Render(scene *scene.Scene) {
             hor.Scale(aspect_ratio * (float64(xaa) - x_offset)/float64(MSAA))).Add(
             scene.Up.Scale((float64(yaa) - y_offset)/float64(MSAA)))
             ray := subpixel.Subtract(&scene.Eye)
-            acc.Iadd(trace(scene.Primitives, scene.Ambient, ray, &scene.Eye, scene.Lights))
+            if result, hit := trace(scene.Primitives, scene.Ambient, ray, &scene.Eye, scene.Lights, 0); hit {
+              acc.Iadd(result)
+            } else {
+              acc.Iadd(background())
+            }
         }
       }
       acc.Iscale(1/float64(MSAA*MSAA))

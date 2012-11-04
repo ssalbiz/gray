@@ -15,10 +15,10 @@ import (
 )
 
 const (
-  MSAA = 1
-	SUBPIXEL_OFFSET = MSAA/2
-  JITTER = false
-  REFLECTIONS = true
+  MSAA = 2
+	SUBPIXEL_OFFSET = float64(MSAA - 1) / 2.0
+  JITTER = true
+  REFLECTIONS = false
   MAX_DEPTH = 2
 )
 
@@ -116,11 +116,11 @@ func Render(scene *scene.Scene) {
 		  acc := glm.Vec3{}
 		  for yaa := 0; yaa < MSAA; yaa++ {
 		    for xaa := 0; xaa < MSAA; xaa++ {
-          x_offset := float64(SUBPIXEL_OFFSET)
-          y_offset := float64(SUBPIXEL_OFFSET)
-		      if (JITTER) {
-		        x_offset = (rand.Float64() - 0.5) * (1/float64(MSAA))
-		        y_offset = (rand.Float64() - 0.5) * (1/float64(MSAA))
+          x_offset := SUBPIXEL_OFFSET
+          y_offset := SUBPIXEL_OFFSET
+		      if JITTER {
+		        x_offset += (rand.Float64() - 0.5) * (0.5/float64(MSAA))
+		        y_offset += (rand.Float64() - 0.5) * (0.5/float64(MSAA))
           }
           subpixel := top_pixel.Add(hor.Scale(aspect_ratio * float64(x))).Add(
             scene.Up.Scale(float64(y))).Add(

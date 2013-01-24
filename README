@@ -1,0 +1,1 @@
+Simple raytracer written in Go. Uses goroutines to parallelize ray scattering.

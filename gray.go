@@ -16,11 +16,11 @@ import (
 )
 
 const (
-  MSAA = 4
+  MSAA = 1
 	SUBPIXEL_OFFSET = float64(MSAA - 1) / 2.0
   JITTER = false
   REFLECTIONS = false
-  MAX_DEPTH = 2
+  MAX_DEPTH = 10
 )
 
 type response struct {
@@ -71,6 +71,7 @@ func trace(root []scene.Primitive, ambient glm.Vec3, ray, origin *glm.Vec3, ligh
         // add diffuse/specular components.
         diffuse_coef := normal.Dot(shadow_ray)
         if diffuse_coef > 0.00001 {
+          fmt.Println(diffuse_coef)
           diffuse_tmp := mat.Diffuse.Scale(diffuse_coef)
           diffuse.Iadd(glm.NewVec3(diffuse_tmp.Elem[0]*light.Colour.Elem[0], diffuse_tmp.Elem[1]*light.Colour.Elem[1], diffuse_tmp.Elem[2]*light.Colour.Elem[2]))
         }
@@ -187,7 +188,7 @@ func Render(scene *scene.Scene) {
 }
 
 func main() {
-  scene, err := scene.CreateScene()
+  sc, err := scene.CreateScene()
   if err != nil {
     fmt.Println(err)
     fmt.Println()
@@ -195,10 +196,11 @@ func main() {
   }
   t := time.Now()
   // Set up parallelism
+  scene.ReadObj("data/cow.obj")
   fmt.Println(runtime.NumCPU())
-  runtime.GOMAXPROCS(runtime.NumCPU())
+  //runtime.GOMAXPROCS(runtime.NumCPU())
   fmt.Println("Starting tracing at ", t, "...")
-  Render(scene)
+  Render(sc)
   fmt.Println("Done tracing at ", time.Now())
   fmt.Println("Tracing took:", time.Now().Sub(t))
 }

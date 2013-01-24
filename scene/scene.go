@@ -1,8 +1,13 @@
 package scene
 
 import (
+  "bufio"
 	"fmt"
+	"io"
 	"math"
+  "os"
+  "strings"
+  "strconv"
 
 	"gray/glm"
 )
@@ -76,6 +81,50 @@ func quadraticRoots(A,B,C float64) []float64 {
     return result
   }
   return nil
+}
+
+// OBJ LOADER
+
+func ReadObj(file string) *Mesh {
+  infile, err := os.Open(file)
+  if err != nil {
+    fmt.Println(err)
+    return &Mesh{}
+  }
+  rd := bufio.NewReader(infile)
+  line, err := rd.ReadString('\n')
+  line = strings.Trim(line, "\r\n")
+  verts := [][3]float64{}
+  faces := [][3]int{}
+  for err != io.EOF {
+    s := strings.Split(line, " ")
+    if line[0] == 'v' {
+      f1, err1 := strconv.ParseFloat(s[1], 64)
+      f2, err2 := strconv.ParseFloat(s[2], 64)
+      f3, err3 := strconv.ParseFloat(s[3], 64)
+      if err1 != nil || err2 != nil || err3 != nil {
+        fmt.Println(err1, err2, err3)
+        fmt.Println()
+        return &Mesh{}
+      }
+      v := [3]float64{ f1, f2, f3 }
+      verts = append(verts, v)
+    } else {
+      i1, err1 := strconv.Atoi(s[1])
+      i2, err2 := strconv.Atoi(s[2])
+      i3, err3 := strconv.Atoi(s[3])
+      if err1 != nil || err2 != nil || err3 != nil {
+        fmt.Println(err1, err2, err3)
+        fmt.Println()
+        return &Mesh{}
+      }
+      f := [3]int{ i1-1 , i2-1, i3-1 }
+      faces = append(faces, f)
+    }
+    line, err = rd.ReadString('\n')
+    line = strings.Trim(line, "\r\n")
+  }
+  return NewMesh(verts, faces, Material{})
 }
 
 // MESH PRIMITIVES
@@ -236,7 +285,6 @@ func ray_epsilon_check(raylen float64, ray glm.Vec3, line glm.Vec3) (b bool, ret
   if raylen > Epsilon {
     return true, raylen, *ray.Scale(raylen).Subtract(&line)
   }
-  //fmt.Println(raylen)
   return false, 0, *glm.NewVec3(0,0,0)
 }
 
